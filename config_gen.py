@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--out-of-tree", action="store_true", help="Build autotools projects out-of-tree. This is a no-op for other project types.")
     parser.add_argument("--qt-version", choices=["4", "5"], default="5", help="Use the given Qt version for qmake. (Default: 5)")
     parser.add_argument("-e", "--preserve-environment", action="store_true", help="Pass environment variables to build processes.")
+    parser.add_argument("-t", "--template", help="Custom template file to base YCM config file on")
     parser.add_argument("PROJECT_DIR", help="The root directory of the project.")
     args = vars(parser.parse_args())
     project_dir = os.path.abspath(args["PROJECT_DIR"])
@@ -96,8 +97,14 @@ def main():
     del args["output"]
     del args["PROJECT_DIR"]
 
+    # determine template filename for YCM config
+    default_template_file = os.path.join(ycm_generator_dir, "template.py")
+    template_file = args.pop("template", default_template_file)
+    template_file = os.path.expanduser(template_file)
+    template_file = os.path.expandvars(template_file)
+
     generate_conf = {
-        "ycm": generate_ycm_conf,
+        "ycm": lambda *args: generate_ycm_conf(*args, template_file=template_file),
         "cc":  generate_cc_conf,
     }[output_format]
 
@@ -435,13 +442,12 @@ def generate_cc_conf(flags, config_file):
                     output.write(f + "\n")
 
 
-def generate_ycm_conf(flags, config_file):
+def generate_ycm_conf(flags, config_file, template_file):
     '''Generates the .ycm_extra_conf.py.
 
     flags: the list of flags
-    config_file: the path to save the configuration file at'''
-
-    template_file = os.path.join(ycm_generator_dir, "template.py")
+    config_file: the path to save the configuration file at
+    template_file: template file to base config on'''
 
     with open(template_file, "r") as template:
         with open(config_file, "w") as output:
